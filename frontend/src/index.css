@@ -1,0 +1,501 @@
+@import "tailwindcss";
+
+/* Makes dark: utilities follow the .dark class instead of the OS
+   preference. Only needed where a token swap isn't enough — e.g.
+   showing a different logo file per theme. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* =========================================================
+   GRASYN DESIGN TOKENS
+
+   Anything declared inside @theme becomes a Tailwind utility.
+   --color-primary        -> bg-primary / text-primary / border-primary
+   --text-body-sm         -> text-body-sm
+   --radius-lg            -> rounded-lg
+
+   Dark mode works by re-declaring the same --color-* variables
+   under .dark (see the bottom of this file), so components never
+   need dark: prefixes.
+   ========================================================= */
+
+@theme {
+  /* ---------------------------------------------------------
+     PALETTE — raw colors. Prefer the semantic tokens below in
+     components; reach for these only when a role has no token.
+     --------------------------------------------------------- */
+
+  --color-brand-50: #f1f6fa;
+  --color-brand-100: #ddeaf4;
+  --color-brand-200: #bdd4e6;
+  --color-brand-300: #95b5cf;
+  --color-brand-400: #6695b9;
+  --color-brand-500: #3368a0;
+  --color-brand-600: #2b5989;
+  --color-brand-700: #244b72;
+  --color-brand-800: #1d3d5d;
+  --color-brand-900: #162f47;
+  --color-brand-950: #0d1f2f;
+
+  --color-neutral-50: #f8fafc;
+  --color-neutral-100: #f1f5f9;
+  --color-neutral-200: #e2e8f0;
+  --color-neutral-300: #cbd5e1;
+  --color-neutral-400: #94a3b8;
+  --color-neutral-500: #64748b;
+  --color-neutral-600: #475569;
+  --color-neutral-700: #334155;
+  --color-neutral-800: #1e293b;
+  --color-neutral-900: #0f172a;
+  --color-neutral-950: #020617;
+
+  --color-success-50: #f0fdf4;
+  --color-success-100: #dcfce7;
+  --color-success-500: #22c55e;
+  --color-success-600: #16a34a;
+  --color-success-700: #15803d;
+
+  --color-warning-50: #fffbeb;
+  --color-warning-100: #fef3c7;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+
+  --color-error-50: #fef2f2;
+  --color-error-100: #fee2e2;
+  --color-error-500: #ef4444;
+  --color-error-600: #dc2626;
+  --color-error-700: #b91c1c;
+
+  --color-info-50: #eff6ff;
+  --color-info-100: #dbeafe;
+  --color-info-500: #3b82f6;
+  --color-info-600: #2563eb;
+  --color-info-700: #1d4ed8;
+
+  --color-ai-50: #f5f3ff;
+  --color-ai-100: #ede9fe;
+  --color-ai-500: #8b5cf6;
+  --color-ai-600: #7c3aed;
+  --color-ai-700: #6d28d9;
+
+  /* ---------------------------------------------------------
+     SEMANTIC ROLES — what components should actually use.
+     --------------------------------------------------------- */
+
+  --color-background: var(--color-neutral-50);
+  --color-foreground: var(--color-neutral-900);
+
+  --color-surface: #ffffff;
+  --color-surface-muted: var(--color-neutral-100);
+
+  --color-primary: var(--color-brand-500);
+  --color-primary-hover: var(--color-brand-600);
+  --color-primary-foreground: #ffffff;
+
+  --color-secondary: var(--color-neutral-200);
+  --color-secondary-hover: var(--color-neutral-300);
+  --color-secondary-foreground: var(--color-neutral-700);
+
+  --color-muted: var(--color-neutral-100);
+  --color-muted-foreground: var(--color-neutral-500);
+
+  --color-border: var(--color-neutral-200);
+  --color-border-subtle: var(--color-neutral-100);
+
+  --color-success: var(--color-success-500);
+  --color-warning: var(--color-warning-500);
+  --color-error: var(--color-error-500);
+  --color-error-hover: var(--color-error-600);
+  --color-error-surface: var(--color-error-50);
+  --color-info: var(--color-info-500);
+
+  --color-ai: var(--color-ai-500);
+  --color-ai-subtle: var(--color-ai-50);
+  --color-ai-border: var(--color-ai-100);
+  --color-ai-foreground: var(--color-ai-700);
+
+  --color-focus-ring: var(--color-brand-400);
+
+  /* ---------------------------------------------------------
+     TYPOGRAPHY
+     Sora for display/headings (structured, geometric — graphene feel).
+     Plus Jakarta Sans for body (friendly SaaS readability).
+     --------------------------------------------------------- */
+
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI",
+    sans-serif;
+  --font-display: "Sora", "Plus Jakarta Sans", system-ui, sans-serif;
+
+  --text-display-xl: 3rem;
+  --text-display-xl--line-height: 3.5rem;
+
+  --text-display-lg: 2.5rem;
+  --text-display-lg--line-height: 3rem;
+
+  --text-h1: 2rem;
+  --text-h1--line-height: 2.5rem;
+
+  --text-h2: 1.5rem;
+  --text-h2--line-height: 2rem;
+
+  --text-h3: 1.25rem;
+  --text-h3--line-height: 1.75rem;
+
+  --text-h4: 1.125rem;
+  --text-h4--line-height: 1.5rem;
+
+  --text-body-lg: 1.125rem;
+  --text-body-lg--line-height: 1.75rem;
+
+  --text-body: 1rem;
+  --text-body--line-height: 1.5rem;
+
+  --text-body-sm: 0.875rem;
+  --text-body-sm--line-height: 1.25rem;
+
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1rem;
+
+  /* ---------------------------------------------------------
+     RADIUS
+     --------------------------------------------------------- */
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+
+  /* ---------------------------------------------------------
+     SHADOWS
+     --------------------------------------------------------- */
+
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.08);
+  --shadow-md: 0 4px 6px rgb(0 0 0 / 0.08);
+  --shadow-lg: 0 10px 15px rgb(0 0 0 / 0.08);
+  --shadow-xl: 0 20px 25px rgb(0 0 0 / 0.1);
+
+  /* ---------------------------------------------------------
+     MOTION
+     --------------------------------------------------------- */
+
+  --ease-grasyn: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Decelerates hard at the end — reads as weight rather than speed.
+     Use it for things that travel a distance. */
+  --ease-glide: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* =========================================================
+   DARK THEME
+   Re-declares the semantic roles only. Utilities compile to
+   var(--color-*), so overriding the variable swaps the theme.
+   ========================================================= */
+
+.dark {
+  --color-background: var(--color-neutral-900);
+  --color-foreground: var(--color-neutral-50);
+
+  --color-surface: var(--color-neutral-800);
+  --color-surface-muted: var(--color-neutral-800);
+
+  --color-primary: var(--color-brand-400);
+  --color-primary-hover: var(--color-brand-300);
+  --color-primary-foreground: var(--color-neutral-950);
+
+  --color-secondary: var(--color-neutral-700);
+  --color-secondary-hover: var(--color-neutral-600);
+  --color-secondary-foreground: var(--color-neutral-100);
+
+  --color-muted: var(--color-neutral-800);
+  --color-muted-foreground: var(--color-neutral-400);
+
+  --color-border: var(--color-neutral-700);
+  --color-border-subtle: var(--color-neutral-800);
+
+  --color-error-surface: #3f1d1d;
+
+  --color-ai: #a78bfa;
+  --color-ai-subtle: #2e2250;
+  --color-ai-border: #5b3fa0;
+  --color-ai-foreground: #c4b5fd;
+
+  --color-focus-ring: var(--color-brand-300);
+}
+
+/* =========================================================
+   BASE
+   ========================================================= */
+
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+  }
+}
+
+/* =========================================================
+   AUTH SHELL TRANSITION
+
+   Login and register share one mounted shell. The form and brand
+   panes slide past each other with a CSS transform; the form body
+   crossfades on route change.
+   ========================================================= */
+
+@keyframes auth-form-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.auth-pane-form {
+  position: relative;
+  z-index: 1;
+}
+
+.auth-pane-showcase {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .auth-pane-form,
+  .auth-pane-showcase {
+    position: absolute;
+    inset-block: 0;
+    width: 50%;
+    transition: transform 700ms var(--ease-glide);
+    will-change: transform;
+  }
+
+  .auth-pane-showcase {
+    display: block;
+    left: 0;
+    z-index: 2;
+    padding: 0.75rem;
+    transform: translateX(100%);
+  }
+
+  .auth-pane-form {
+    left: 0;
+    transform: translateX(0);
+  }
+
+  /* Register: form on the right, brand panel on the left */
+  .auth-pane-form.auth-pane-swapped {
+    transform: translateX(100%);
+  }
+
+  .auth-pane-showcase.auth-pane-swapped {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .auth-form-content {
+    animation: auth-form-in 420ms var(--ease-glide) both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-pane-form,
+  .auth-pane-showcase {
+    transition: none;
+  }
+}
+
+/* =========================================================
+   ROUTE TRANSITIONS (landing ↔ auth and other navigations)
+
+   Named pairs for optional View Transitions API usage.
+   ========================================================= */
+
+@utility vt-auth-showcase {
+  view-transition-name: auth-showcase;
+}
+
+@utility vt-auth-form {
+  view-transition-name: auth-form;
+}
+
+@keyframes auth-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-group(auth-showcase),
+  ::view-transition-group(auth-form),
+  ::view-transition-old(auth-showcase),
+  ::view-transition-new(auth-showcase),
+  ::view-transition-old(auth-form),
+  ::view-transition-new(auth-form) {
+    animation-duration: 620ms;
+    animation-timing-function: var(--ease-glide);
+  }
+
+  ::view-transition-old(auth-showcase),
+  ::view-transition-new(auth-showcase) {
+    animation: none;
+    mix-blend-mode: normal;
+    height: 100%;
+    width: 100%;
+    object-fit: none;
+  }
+
+  ::view-transition-old(auth-form),
+  ::view-transition-new(auth-form) {
+    height: 100%;
+    width: 100%;
+    object-fit: none;
+    object-position: top center;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 280ms;
+  }
+
+  @supports not (view-transition-name: none) {
+    .auth-fallback-enter {
+      animation: auth-enter 320ms var(--ease-glide) both;
+    }
+  }
+}
+
+/* =========================================================
+   LANDING MOTION
+   21st.dev-inspired patterns (word reveal, floating blobs,
+   soft mouse glow) using Grasyn tokens.
+   ========================================================= */
+
+@keyframes landing-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+  }
+}
+
+@keyframes landing-word-in {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes landing-soft-float {
+  from {
+    transform: translateY(8px);
+  }
+  to {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes landing-blob-a {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(40px, 28px) scale(1.08);
+  }
+}
+
+@keyframes landing-blob-b {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-36px, 20px) scale(1.12);
+  }
+}
+
+@keyframes landing-blob-c {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(24px, -32px) scale(0.94);
+  }
+}
+
+@keyframes landing-preview-in {
+  from {
+    opacity: 0;
+    transform: translateY(36px) scale(0.96);
+  }
+}
+
+@utility reveal-prep {
+  opacity: 0;
+  transform: translateY(16px);
+}
+
+@utility reveal-in {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 520ms var(--ease-glide),
+    transform 520ms var(--ease-glide);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .landing-hero-rise {
+    animation: landing-rise 800ms var(--ease-glide) both;
+  }
+
+  .landing-word {
+    opacity: 0;
+    animation: landing-word-in 700ms var(--ease-glide) both;
+  }
+
+  .landing-hero-float {
+    animation: landing-soft-float 7s ease-in-out infinite alternate;
+  }
+
+  .landing-preview-rise {
+    animation: landing-preview-in 900ms var(--ease-glide) both;
+  }
+
+  .landing-blob-a {
+    animation: landing-blob-a 14s ease-in-out infinite;
+  }
+
+  .landing-blob-b {
+    animation: landing-blob-b 18s ease-in-out infinite;
+  }
+
+  .landing-blob-c {
+    animation: landing-blob-c 16s ease-in-out infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-prep,
+  .landing-word {
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+}

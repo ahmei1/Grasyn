@@ -1,0 +1,19 @@
+# Compiled
+/dist
+/node_modules
+/coverage
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Prisma
+/generated
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store

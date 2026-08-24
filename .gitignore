@@ -1,0 +1,27 @@
+# Logs
+*.log
+npm-debug.log*
+
+# Dependencies and build
+node_modules
+dist
+dist-ssr
+coverage
+
+# Env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Secrets
+.cursor/mcp.json
+
+# OS / editor
+.DS_Store
+.idea
+.vscode
+*.swp
+
+# Prisma
+backend/generated
