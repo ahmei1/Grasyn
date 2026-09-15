@@ -30,7 +30,12 @@ export class ActivityController {
     @Param('projectId') projectId: string,
     @Query() page: PaginationQueryDto,
   ) {
-    return this.activity.forProject(user.id, projectId, page.page, page.pageSize);
+    return this.activity.forProject(
+      user.id,
+      projectId,
+      page.page,
+      page.pageSize,
+    );
   }
 
   @Get('tasks/:taskId/activity')

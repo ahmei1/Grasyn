@@ -1,3 +1,4 @@
+import { validateConfig } from './common/config';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
@@ -18,7 +19,7 @@ import { HealthController } from './health.controller';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, validate: validateConfig }),
     ThrottlerModule.forRoot({
       throttlers: [{ ttl: 60000, limit: 120 }],
     }),

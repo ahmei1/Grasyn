@@ -1,3 +1,4 @@
+import { ACCESS_COOKIE, readCookie } from '../cookies';
 import {
   CanActivate,
   ExecutionContext,
@@ -28,7 +29,7 @@ export class AuthGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<Request>();
-    const token = request.cookies?.grasyn_access as string | undefined;
+    const token = readCookie(request.cookies, ACCESS_COOKIE);
     if (!token) {
       throw new UnauthorizedException({
         code: 'UNAUTHORIZED',
@@ -36,25 +37,25 @@ export class AuthGuard implements CanActivate {
       });
     }
 
+    let payload: { sub: string };
     try {
-      const payload = await this.jwt.verifyAsync<{ sub: string }>(token);
-      const user = await this.prisma.user.findUnique({
-        where: { id: payload.sub },
-        select: { id: true, email: true, name: true, timezone: true },
-      });
-      if (!user) {
-        throw new UnauthorizedException({
-          code: 'UNAUTHORIZED',
-          message: 'Not authenticated',
-        });
+      payload = await this.jwt.verifyAsync<{ sub: string }>(token);
+      if (typeof payload.sub !== 'string' || !payload.sub) {
+        throw new Error('Invalid subject');
       }
-      (request as Request & { user: typeof user }).user = user;
-      return true;
     } catch {
       throw new UnauthorizedException({
         code: 'UNAUTHORIZED',
         message: 'Not authenticated',
       });
     }
+    // Database failures should remain server errors, not masquerade as expired sessions.
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: { id: true, email: true, name: true, timezone: true },
+    });
+    if (!user) throw new UnauthorizedException('Not authenticated');
+    (request as Request & { user: typeof user }).user = user;
+    return true;
   }
 }

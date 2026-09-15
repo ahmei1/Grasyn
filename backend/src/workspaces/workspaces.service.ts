@@ -37,25 +37,27 @@ export class WorkspacesService {
   ) {}
 
   async create(userId: string, dto: CreateWorkspaceDto) {
-    const workspace = await this.prisma.workspace.create({
-      data: {
-        name: dto.name.trim(),
-        slug: slugify(dto.name),
-        ownerId: userId,
-        members: {
-          create: { userId, role: WorkspaceRole.OWNER },
+    return this.prisma.$transaction(async (tx) => {
+      const workspace = await tx.workspace.create({
+        data: {
+          name: dto.name.trim(),
+          slug: slugify(dto.name),
+          ownerId: userId,
+          members: {
+            create: { userId, role: WorkspaceRole.OWNER },
+          },
         },
-      },
+      });
+      await tx.auditEvent.create({
+        data: {
+          workspaceId: workspace.id,
+          actorId: userId,
+          action: 'workspace.created',
+          metadata: { name: workspace.name },
+        },
+      });
+      return { workspace };
     });
-    await this.prisma.auditEvent.create({
-      data: {
-        workspaceId: workspace.id,
-        actorId: userId,
-        action: 'workspace.created',
-        metadata: { name: workspace.name },
-      },
-    });
-    return { workspace };
   }
 
   async listForUser(userId: string) {
@@ -120,7 +122,9 @@ export class WorkspacesService {
       });
     }
 
-    const existingUser = await this.prisma.user.findUnique({ where: { email } });
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+    });
     if (existingUser) {
       const already = await this.prisma.workspaceMember.findUnique({
         where: {
@@ -135,32 +139,34 @@ export class WorkspacesService {
       }
     }
 
-    const invite = await this.prisma.workspaceInvite.upsert({
-      where: { workspaceId_email: { workspaceId, email } },
-      create: {
-        workspaceId,
-        email,
-        role,
-        token: randomBytes(24).toString('hex'),
-        expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-      },
-      update: {
-        role,
-        token: randomBytes(24).toString('hex'),
-        expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-      },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      const invite = await tx.workspaceInvite.upsert({
+        where: { workspaceId_email: { workspaceId, email } },
+        create: {
+          workspaceId,
+          email,
+          role,
+          token: randomBytes(24).toString('hex'),
+          expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        },
+        update: {
+          role,
+          token: randomBytes(24).toString('hex'),
+          expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        },
+      });
 
-    await this.prisma.auditEvent.create({
-      data: {
-        workspaceId,
-        actorId: userId,
-        action: 'member.invited',
-        metadata: { email, role },
-      },
-    });
+      await tx.auditEvent.create({
+        data: {
+          workspaceId,
+          actorId: userId,
+          action: 'member.invited',
+          metadata: { email, role },
+        },
+      });
 
-    return { invite };
+      return { invite };
+    });
   }
 
   async getInvite(token: string) {
@@ -262,22 +268,28 @@ export class WorkspacesService {
         message: 'Cannot change the owner role',
       });
     }
-    const updated = await this.prisma.workspaceMember.update({
-      where: { id: target.id },
-      data: { role },
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.workspaceMember.update({
+        where: { id: target.id },
+        data: { role },
+      });
+      await tx.auditEvent.create({
+        data: {
+          workspaceId,
+          actorId,
+          action: 'member.role_changed',
+          metadata: { userId: memberUserId, role },
+        },
+      });
+      return { member: updated };
     });
-    await this.prisma.auditEvent.create({
-      data: {
-        workspaceId,
-        actorId,
-        action: 'member.role_changed',
-        metadata: { userId: memberUserId, role },
-      },
-    });
-    return { member: updated };
   }
 
-  async removeMember(actorId: string, workspaceId: string, memberUserId: string) {
+  async removeMember(
+    actorId: string,
+    workspaceId: string,
+    memberUserId: string,
+  ) {
     const actor = await this.access.requireMembership(actorId, workspaceId);
     if (actorId !== memberUserId && !canManageMembers(actor.role)) {
       throw new ForbiddenException({
@@ -300,15 +312,24 @@ export class WorkspacesService {
         message: 'Cannot remove the workspace owner',
       });
     }
-    await this.prisma.workspaceMember.delete({ where: { id: target.id } });
-    await this.prisma.auditEvent.create({
-      data: {
-        workspaceId,
-        actorId,
-        action: 'member.removed',
-        metadata: { userId: memberUserId },
-      },
-    });
+    await this.prisma.$transaction([
+      this.prisma.projectMember.deleteMany({
+        where: { userId: memberUserId, project: { workspaceId } },
+      }),
+      this.prisma.task.updateMany({
+        where: { workspaceId, assigneeId: memberUserId },
+        data: { assigneeId: null },
+      }),
+      this.prisma.workspaceMember.delete({ where: { id: target.id } }),
+      this.prisma.auditEvent.create({
+        data: {
+          workspaceId,
+          actorId,
+          action: 'member.removed',
+          metadata: { userId: memberUserId },
+        },
+      }),
+    ]);
     return { ok: true };
   }
 }

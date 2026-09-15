@@ -28,45 +28,54 @@ export class TasksService {
     if (dto.assigneeId) {
       await this.access.requireMembership(dto.assigneeId, project.workspaceId);
     }
-    const last = await this.prisma.task.findFirst({
-      where: { projectId, status: dto.status ?? TaskStatus.TODO },
-      orderBy: { position: 'desc' },
-    });
-    const task = await this.prisma.task.create({
-      data: {
-        workspaceId: project.workspaceId,
-        projectId,
-        title: dto.title.trim(),
-        description: dto.description?.trim() ?? '',
-        status: dto.status ?? TaskStatus.TODO,
-        priority: dto.priority ?? TaskPriority.MEDIUM,
-        assigneeId: dto.assigneeId || null,
-        creatorId: userId,
-        dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
-        position: (last?.position ?? -1) + 1,
-      },
-      include: taskInclude,
-    });
-    await this.events.activity({
-      workspaceId: project.workspaceId,
-      actorId: userId,
-      projectId,
-      taskId: task.id,
-      type: 'task.created',
-      metadata: { title: task.title },
-    });
-    if (task.assigneeId && task.assigneeId !== userId) {
-      await this.events.notify({
-        workspaceId: project.workspaceId,
-        userId: task.assigneeId,
-        type: 'task.assigned',
-        title: 'Task assigned to you',
-        body: task.title,
-        resourceType: 'task',
-        resourceId: task.id,
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "Project" WHERE "id" = ${projectId} FOR UPDATE`;
+      const last = await tx.task.findFirst({
+        where: { projectId, status: dto.status ?? TaskStatus.TODO },
+        orderBy: { position: 'desc' },
       });
-    }
-    return { task };
+      const task = await tx.task.create({
+        data: {
+          workspaceId: project.workspaceId,
+          projectId,
+          title: dto.title.trim(),
+          description: dto.description?.trim() ?? '',
+          status: dto.status ?? TaskStatus.TODO,
+          priority: dto.priority ?? TaskPriority.MEDIUM,
+          assigneeId: dto.assigneeId || null,
+          creatorId: userId,
+          dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+          position: (last?.position ?? -1) + 1,
+        },
+        include: taskInclude,
+      });
+      await this.events.activity(
+        {
+          workspaceId: project.workspaceId,
+          actorId: userId,
+          projectId,
+          taskId: task.id,
+          type: 'task.created',
+          metadata: { title: task.title },
+        },
+        tx,
+      );
+      if (task.assigneeId && task.assigneeId !== userId) {
+        await this.events.notify(
+          {
+            workspaceId: project.workspaceId,
+            userId: task.assigneeId,
+            type: 'task.assigned',
+            title: 'Task assigned to you',
+            body: task.title,
+            resourceType: 'task',
+            resourceId: task.id,
+          },
+          tx,
+        );
+      }
+      return { task };
+    });
   }
 
   async listForProject(
@@ -116,71 +125,142 @@ export class TasksService {
     if (dto.assigneeId) {
       await this.access.requireMembership(dto.assigneeId, existing.workspaceId);
     }
-    const previousAssignee = existing.assigneeId;
-    const task = await this.prisma.task.update({
-      where: { id: existing.id },
-      data: {
-        ...(dto.title ? { title: dto.title.trim() } : {}),
-        ...(dto.description !== undefined
-          ? { description: dto.description.trim() }
-          : {}),
-        ...(dto.status ? { status: dto.status } : {}),
-        ...(dto.priority ? { priority: dto.priority } : {}),
-        ...(dto.assigneeId !== undefined
-          ? { assigneeId: dto.assigneeId || null }
-          : {}),
-        ...(dto.dueDate !== undefined
-          ? { dueDate: dto.dueDate ? new Date(dto.dueDate) : null }
-          : {}),
-      },
-      include: taskInclude,
-    });
-    await this.events.activity({
-      workspaceId: existing.workspaceId,
-      actorId: userId,
-      projectId: existing.projectId,
-      taskId: existing.id,
-      type: 'task.updated',
-      metadata: {
-        title: task.title,
-        status: task.status,
-        assigneeId: task.assigneeId,
-      },
-    });
-    if (
-      task.assigneeId &&
-      task.assigneeId !== userId &&
-      task.assigneeId !== previousAssignee
-    ) {
-      await this.events.notify({
-        workspaceId: existing.workspaceId,
-        userId: task.assigneeId,
-        type: 'task.assigned',
-        title: 'Task assigned to you',
-        body: task.title,
-        resourceType: 'task',
-        resourceId: task.id,
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "Project" WHERE "id" = ${existing.projectId} FOR UPDATE`;
+      const current = await tx.task.findUniqueOrThrow({
+        where: { id: taskId },
       });
-    }
-    return { task };
+      const previousAssignee = current.assigneeId;
+      let position = current.position;
+      if (dto.status && dto.status !== current.status) {
+        position = await this.reposition(tx, current, dto.status);
+      }
+      const task = await tx.task.update({
+        where: { id: existing.id },
+        data: {
+          position,
+          ...(dto.title ? { title: dto.title.trim() } : {}),
+          ...(dto.description !== undefined
+            ? { description: dto.description.trim() }
+            : {}),
+          ...(dto.status ? { status: dto.status } : {}),
+          ...(dto.priority ? { priority: dto.priority } : {}),
+          ...(dto.assigneeId !== undefined
+            ? { assigneeId: dto.assigneeId || null }
+            : {}),
+          ...(dto.dueDate !== undefined
+            ? { dueDate: dto.dueDate ? new Date(dto.dueDate) : null }
+            : {}),
+        },
+        include: taskInclude,
+      });
+      await this.events.activity(
+        {
+          workspaceId: existing.workspaceId,
+          actorId: userId,
+          projectId: existing.projectId,
+          taskId: existing.id,
+          type: 'task.updated',
+          metadata: {
+            title: task.title,
+            status: task.status,
+            assigneeId: task.assigneeId,
+          },
+        },
+        tx,
+      );
+      if (
+        task.assigneeId &&
+        task.assigneeId !== userId &&
+        task.assigneeId !== previousAssignee
+      ) {
+        await this.events.notify(
+          {
+            workspaceId: existing.workspaceId,
+            userId: task.assigneeId,
+            type: 'task.assigned',
+            title: 'Task assigned to you',
+            body: task.title,
+            resourceType: 'task',
+            resourceId: task.id,
+          },
+          tx,
+        );
+      }
+      return { task };
+    });
   }
 
   async move(userId: string, taskId: string, dto: MoveTaskDto) {
     const existing = await this.access.requireTask(userId, taskId);
-    const task = await this.prisma.task.update({
-      where: { id: existing.id },
-      data: { status: dto.status, position: dto.position },
-      include: taskInclude,
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "Project" WHERE "id" = ${existing.projectId} FOR UPDATE`;
+      const current = await tx.task.findUniqueOrThrow({
+        where: { id: taskId },
+      });
+      const position = await this.reposition(
+        tx,
+        current,
+        dto.status,
+        dto.position,
+      );
+      const task = await tx.task.update({
+        where: { id: existing.id },
+        data: { status: dto.status, position },
+        include: taskInclude,
+      });
+      await this.events.activity(
+        {
+          workspaceId: existing.workspaceId,
+          actorId: userId,
+          projectId: existing.projectId,
+          taskId: existing.id,
+          type: 'task.moved',
+          metadata: { title: task.title, status: dto.status },
+        },
+        tx,
+      );
+      return { task };
     });
-    await this.events.activity({
-      workspaceId: existing.workspaceId,
-      actorId: userId,
-      projectId: existing.projectId,
-      taskId: existing.id,
-      type: 'task.moved',
-      metadata: { title: task.title, status: dto.status },
+  }
+
+  // Caller holds the project row lock. Re-number siblings so inserts never tie.
+  private async reposition(
+    tx: Prisma.TransactionClient,
+    current: { id: string; projectId: string; status: TaskStatus },
+    status: TaskStatus,
+    requested?: number,
+  ) {
+    const siblings = await tx.task.findMany({
+      where: { projectId: current.projectId, status, id: { not: current.id } },
+      orderBy: [{ position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+      select: { id: true },
     });
-    return { task };
+    const position = Math.min(requested ?? siblings.length, siblings.length);
+    for (const [index, sibling] of siblings.entries()) {
+      await tx.task.update({
+        where: { id: sibling.id },
+        data: { position: index < position ? index : index + 1 },
+      });
+    }
+    if (current.status !== status) {
+      const previous = await tx.task.findMany({
+        where: {
+          projectId: current.projectId,
+          status: current.status,
+          id: { not: current.id },
+        },
+        orderBy: [{ position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+        select: { id: true },
+      });
+      for (const [index, sibling] of previous.entries()) {
+        await tx.task.update({
+          where: { id: sibling.id },
+          data: { position: index },
+        });
+      }
+    }
+    return position;
   }
 
   private async queryTasks(
@@ -211,7 +291,11 @@ export class TasksService {
       this.prisma.task.findMany({
         where,
         include: taskInclude,
-        orderBy: [{ status: 'asc' }, { position: 'asc' }, { createdAt: 'desc' }],
+        orderBy: [
+          { status: 'asc' },
+          { position: 'asc' },
+          { createdAt: 'desc' },
+        ],
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

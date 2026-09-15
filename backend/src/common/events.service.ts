@@ -25,8 +25,8 @@ type NotifyInput = {
 export class EventsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  activity(input: ActivityInput) {
-    return this.prisma.activityEvent.create({
+  activity(input: ActivityInput, db: Prisma.TransactionClient = this.prisma) {
+    return db.activityEvent.create({
       data: {
         workspaceId: input.workspaceId,
         actorId: input.actorId,
@@ -38,9 +38,9 @@ export class EventsService {
     });
   }
 
-  notify(input: NotifyInput) {
+  notify(input: NotifyInput, db: Prisma.TransactionClient = this.prisma) {
     if (!input.userId) return Promise.resolve(null);
-    return this.prisma.notification.create({
+    return db.notification.create({
       data: input,
     });
   }

@@ -10,3 +10,9 @@ export function cookieOptions(maxAgeMs: number, secure: boolean) {
     maxAge: maxAgeMs,
   };
 }
+
+export function readCookie(cookies: unknown, name: string): string | undefined {
+  if (!cookies || typeof cookies !== 'object') return undefined;
+  const value = (cookies as Record<string, unknown>)[name];
+  return typeof value === 'string' ? value : undefined;
+}

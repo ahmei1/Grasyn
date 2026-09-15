@@ -32,21 +32,27 @@ describe('AccessService tenant isolation', () => {
 
   it('does not allow a member of workspace B to read workspace A data', async () => {
     prisma.workspaceMember.findUnique.mockImplementation(
-      async ({ where }: { where: { workspaceId_userId: { workspaceId: string; userId: string } } }) => {
+      ({
+        where,
+      }: {
+        where: { workspaceId_userId: { workspaceId: string; userId: string } };
+      }) => {
         if (
           where.workspaceId_userId.workspaceId === 'ws-b' &&
           where.workspaceId_userId.userId === 'user-b'
         ) {
-          return { role: WorkspaceRole.MEMBER };
+          return Promise.resolve({ role: WorkspaceRole.MEMBER });
         }
-        return null;
+        return Promise.resolve(null);
       },
     );
 
-    await expect(access.requireMembership('user-b', 'ws-a')).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
-    await expect(access.requireMembership('user-b', 'ws-b')).resolves.toBeTruthy();
+    await expect(
+      access.requireMembership('user-b', 'ws-a'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      access.requireMembership('user-b', 'ws-b'),
+    ).resolves.toBeTruthy();
   });
 });
 

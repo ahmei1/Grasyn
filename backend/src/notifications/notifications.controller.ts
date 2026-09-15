@@ -16,7 +16,12 @@ export class NotificationsController {
     @Param('workspaceId') workspaceId: string,
     @Query() page: PaginationQueryDto,
   ) {
-    return this.notifications.list(user.id, workspaceId, page.page, page.pageSize);
+    return this.notifications.list(
+      user.id,
+      workspaceId,
+      page.page,
+      page.pageSize,
+    );
   }
 
   @Patch('notifications/:notificationId/read')

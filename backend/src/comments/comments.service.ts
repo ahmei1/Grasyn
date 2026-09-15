@@ -26,36 +26,44 @@ export class CommentsService {
 
   async create(userId: string, taskId: string, dto: CreateCommentDto) {
     const task = await this.access.requireTask(userId, taskId);
-    const comment = await this.prisma.comment.create({
-      data: {
-        workspaceId: task.workspaceId,
-        taskId: task.id,
-        authorId: userId,
-        body: dto.body.trim(),
-      },
-      include: {
-        author: { select: { id: true, name: true, email: true } },
-      },
-    });
-    await this.events.activity({
-      workspaceId: task.workspaceId,
-      actorId: userId,
-      projectId: task.projectId,
-      taskId: task.id,
-      type: 'comment.created',
-      metadata: { taskTitle: task.title },
-    });
-    if (task.assigneeId && task.assigneeId !== userId) {
-      await this.events.notify({
-        workspaceId: task.workspaceId,
-        userId: task.assigneeId,
-        type: 'task.commented',
-        title: 'New comment on a task',
-        body: task.title,
-        resourceType: 'task',
-        resourceId: task.id,
+    return this.prisma.$transaction(async (tx) => {
+      const comment = await tx.comment.create({
+        data: {
+          workspaceId: task.workspaceId,
+          taskId: task.id,
+          authorId: userId,
+          body: dto.body.trim(),
+        },
+        include: {
+          author: { select: { id: true, name: true, email: true } },
+        },
       });
-    }
-    return { comment };
+      await this.events.activity(
+        {
+          workspaceId: task.workspaceId,
+          actorId: userId,
+          projectId: task.projectId,
+          taskId: task.id,
+          type: 'comment.created',
+          metadata: { taskTitle: task.title },
+        },
+        tx,
+      );
+      if (task.assigneeId && task.assigneeId !== userId) {
+        await this.events.notify(
+          {
+            workspaceId: task.workspaceId,
+            userId: task.assigneeId,
+            type: 'task.commented',
+            title: 'New comment on a task',
+            body: task.title,
+            resourceType: 'task',
+            resourceId: task.id,
+          },
+          tx,
+        );
+      }
+      return { comment };
+    });
   }
 }

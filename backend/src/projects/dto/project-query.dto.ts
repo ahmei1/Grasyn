@@ -1,11 +1,13 @@
-import { IsOptional, IsString } from 'class-validator';
+import { ProjectStatus } from '@prisma/client';
+import { PaginationQueryDto } from '../../common/dto/pagination.dto';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
-export class ProjectQueryDto {
+export class ProjectQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
-  status?: string;
+  @IsEnum(ProjectStatus)
+  status?: ProjectStatus;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -1,3 +1,4 @@
+import { accessMaxAgeMs } from '../common/config';
 import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
@@ -13,6 +14,7 @@ import {
   ACCESS_COOKIE,
   REFRESH_COOKIE,
   cookieOptions,
+  readCookie,
 } from '../common/cookies';
 
 @ApiTags('auth')
@@ -31,7 +33,12 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.auth.register(dto);
-    this.setAuthCookies(res, result.accessToken, result.refreshToken, result.refreshMaxAgeMs);
+    this.setAuthCookies(
+      res,
+      result.accessToken,
+      result.refreshToken,
+      result.refreshMaxAgeMs,
+    );
     return { user: result.user };
   }
 
@@ -43,7 +50,12 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.auth.login(dto.email, dto.password);
-    this.setAuthCookies(res, result.accessToken, result.refreshToken, result.refreshMaxAgeMs);
+    this.setAuthCookies(
+      res,
+      result.accessToken,
+      result.refreshToken,
+      result.refreshMaxAgeMs,
+    );
     return { user: result.user };
   }
 
@@ -53,18 +65,22 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.auth.refresh(req.cookies?.[REFRESH_COOKIE]);
-    this.setAuthCookies(res, result.accessToken, result.refreshToken, result.refreshMaxAgeMs);
+    const result = await this.auth.refresh(
+      readCookie(req.cookies, REFRESH_COOKIE),
+    );
+    this.setAuthCookies(
+      res,
+      result.accessToken,
+      result.refreshToken,
+      result.refreshMaxAgeMs,
+    );
     return { user: result.user };
   }
 
   @Public()
   @Post('logout')
-  async logout(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    await this.auth.logout(req.cookies?.[REFRESH_COOKIE]);
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    await this.auth.logout(readCookie(req.cookies, REFRESH_COOKIE));
     res.clearCookie(ACCESS_COOKIE, { path: '/' });
     res.clearCookie(REFRESH_COOKIE, { path: '/' });
     return { ok: true };
@@ -82,7 +98,18 @@ export class AuthController {
     refreshMaxAgeMs: number,
   ) {
     const secure = this.config.get('COOKIE_SECURE') === 'true';
-    res.cookie(ACCESS_COOKIE, accessToken, cookieOptions(15 * 60 * 1000, secure));
-    res.cookie(REFRESH_COOKIE, refreshToken, cookieOptions(refreshMaxAgeMs, secure));
+    res.cookie(
+      ACCESS_COOKIE,
+      accessToken,
+      cookieOptions(
+        accessMaxAgeMs(this.config.get<string>('JWT_ACCESS_EXPIRES') ?? '15m'),
+        secure,
+      ),
+    );
+    res.cookie(
+      REFRESH_COOKIE,
+      refreshToken,
+      cookieOptions(refreshMaxAgeMs, secure),
+    );
   }
 }

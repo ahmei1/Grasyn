@@ -14,7 +14,6 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { ProjectQueryDto } from './dto/project-query.dto';
 import { AddProjectMemberDto } from './dto/add-project-member.dto';
-import { PaginationQueryDto } from '../common/dto/pagination.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 
@@ -37,16 +36,12 @@ export class ProjectsController {
     @CurrentUser() user: AuthUser,
     @Param('workspaceId') workspaceId: string,
     @Query() query: ProjectQueryDto,
-    @Query() page: PaginationQueryDto,
   ) {
-    return this.projects.list(user.id, workspaceId, { ...query, ...page });
+    return this.projects.list(user.id, workspaceId, query);
   }
 
   @Get('projects/:projectId')
-  getOne(
-    @CurrentUser() user: AuthUser,
-    @Param('projectId') projectId: string,
-  ) {
+  getOne(@CurrentUser() user: AuthUser, @Param('projectId') projectId: string) {
     return this.projects.getOne(user.id, projectId);
   }
 

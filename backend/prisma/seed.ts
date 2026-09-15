@@ -1,9 +1,24 @@
-import { PrismaClient, ProjectPriority, ProjectStatus, TaskPriority, TaskStatus, WorkspaceRole } from '@prisma/client';
+import {
+  PrismaClient,
+  ProjectPriority,
+  ProjectStatus,
+  TaskPriority,
+  TaskStatus,
+  WorkspaceRole,
+} from '@prisma/client';
 import * as argon2 from 'argon2';
 
 const prisma = new PrismaClient();
 
 async function main() {
+  if (
+    process.env.NODE_ENV === 'production' ||
+    process.env.ALLOW_DESTRUCTIVE_SEED !== 'true'
+  ) {
+    throw new Error(
+      'Seeding deletes all existing data. Use a disposable development database and explicitly set ALLOW_DESTRUCTIVE_SEED=true. Production seeding is disabled.',
+    );
+  }
   await prisma.notification.deleteMany();
   await prisma.auditEvent.deleteMany();
   await prisma.activityEvent.deleteMany();
@@ -68,7 +83,11 @@ async function main() {
       status: ProjectStatus.ACTIVE,
       priority: ProjectPriority.HIGH,
       members: {
-        create: [{ userId: alex.id }, { userId: jordan.id }, { userId: sam.id }],
+        create: [
+          { userId: alex.id },
+          { userId: jordan.id },
+          { userId: sam.id },
+        ],
       },
     },
   });
@@ -92,7 +111,8 @@ async function main() {
       workspaceId: workspace.id,
       projectId: platform.id,
       title: 'Ship cookie-based authentication',
-      description: 'httpOnly access + refresh cookies, argon2 hashes, session restore.',
+      description:
+        'httpOnly access + refresh cookies, argon2 hashes, session restore.',
       status: TaskStatus.DONE,
       priority: TaskPriority.HIGH,
       assigneeId: alex.id,
@@ -105,7 +125,8 @@ async function main() {
       workspaceId: workspace.id,
       projectId: platform.id,
       title: 'Build the project Kanban board',
-      description: 'Drag tasks between To do, In progress, In review, and Done.',
+      description:
+        'Drag tasks between To do, In progress, In review, and Done.',
       status: TaskStatus.IN_PROGRESS,
       priority: TaskPriority.HIGH,
       assigneeId: jordan.id,
@@ -131,7 +152,8 @@ async function main() {
       workspaceId: workspace.id,
       projectId: platform.id,
       title: 'Write the workspace catch-up notes',
-      description: 'Keep a human summary of what shipped this week until AI catch-up exists.',
+      description:
+        'Keep a human summary of what shipped this week until AI catch-up exists.',
       status: TaskStatus.TODO,
       priority: TaskPriority.HIGH,
       assigneeId: alex.id,
@@ -145,7 +167,8 @@ async function main() {
       workspaceId: workspace.id,
       projectId: design.id,
       title: 'Document graphite + teal tokens',
-      description: 'Keep the product identity consistent across empty, loading, and error states.',
+      description:
+        'Keep the product identity consistent across empty, loading, and error states.',
       status: TaskStatus.IN_REVIEW,
       priority: TaskPriority.LOW,
       assigneeId: jordan.id,

@@ -1,7 +1,8 @@
+import { Transform } from 'class-transformer';
 import {
   IsDateString,
   IsEnum,
-  IsOptional,
+  ValidateIf,
   IsString,
   MaxLength,
   MinLength,
@@ -14,31 +15,38 @@ export class CreateTaskDto {
   @IsString()
   @MinLength(1)
   @MaxLength(160)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   title: string;
 
   @ApiPropertyOptional()
-  @IsOptional()
+  @ValidateIf((_object, value: unknown) => value !== undefined)
   @IsString()
   @MaxLength(8000)
   description?: string;
 
   @ApiPropertyOptional({ enum: TaskStatus })
-  @IsOptional()
+  @ValidateIf((_object, value: unknown) => value !== undefined)
   @IsEnum(TaskStatus)
   status?: TaskStatus;
 
   @ApiPropertyOptional({ enum: TaskPriority })
-  @IsOptional()
+  @ValidateIf((_object, value: unknown) => value !== undefined)
   @IsEnum(TaskPriority)
   priority?: TaskPriority;
 
   @ApiPropertyOptional()
-  @IsOptional()
+  @ValidateIf(
+    (_object, value: unknown) => value !== undefined && value !== null,
+  )
   @IsString()
   assigneeId?: string;
 
   @ApiPropertyOptional()
-  @IsOptional()
+  @ValidateIf(
+    (_object, value: unknown) => value !== undefined && value !== null,
+  )
   @IsDateString()
   dueDate?: string;
 }

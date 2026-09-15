@@ -3,6 +3,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
@@ -14,7 +15,12 @@ function hashToken(token: string) {
   return createHash('sha256').update(token).digest('hex');
 }
 
-function toUser(user: { id: string; email: string; name: string; timezone: string }) {
+function toUser(user: {
+  id: string;
+  email: string;
+  name: string;
+  timezone: string;
+}) {
   return {
     id: user.id,
     email: user.email,
@@ -42,15 +48,17 @@ export class AuthService {
     }
 
     const passwordHash = await argon2.hash(dto.password);
-    const user = await this.prisma.user.create({
-      data: {
-        email,
-        passwordHash,
-        name: dto.name.trim(),
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email,
+          passwordHash,
+          name: dto.name.trim(),
+        },
+      });
+      const tokens = await this.issueTokens(user.id, tx);
+      return { user: toUser(user), ...tokens };
     });
-    const tokens = await this.issueTokens(user.id);
-    return { user: toUser(user), ...tokens };
   }
 
   async login(email: string, password: string) {
@@ -81,20 +89,24 @@ export class AuthService {
         message: 'Not authenticated',
       });
     }
-    const tokenHash = hashToken(refreshToken);
-    const stored = await this.prisma.refreshToken.findUnique({
-      where: { tokenHash },
-      include: { user: true },
-    });
-    if (!stored || stored.expiresAt < new Date()) {
-      throw new UnauthorizedException({
-        code: 'UNAUTHORIZED',
-        message: 'Not authenticated',
+    return this.prisma.$transaction(async (tx) => {
+      const stored = await tx.refreshToken.findUnique({
+        where: { tokenHash: hashToken(refreshToken) },
+        include: { user: true },
       });
-    }
-    await this.prisma.refreshToken.delete({ where: { id: stored.id } });
-    const tokens = await this.issueTokens(stored.userId);
-    return { user: toUser(stored.user), ...tokens };
+      if (!stored || stored.expiresAt <= new Date()) {
+        throw new UnauthorizedException('Not authenticated');
+      }
+      // Conditional deletion makes a token single-use even under concurrent refreshes.
+      const consumed = await tx.refreshToken.deleteMany({
+        where: { id: stored.id, expiresAt: { gt: new Date() } },
+      });
+      if (consumed.count !== 1) {
+        throw new UnauthorizedException('Not authenticated');
+      }
+      const tokens = await this.issueTokens(stored.userId, tx);
+      return { user: toUser(stored.user), ...tokens };
+    });
   }
 
   async logout(refreshToken: string | undefined) {
@@ -114,12 +126,15 @@ export class AuthService {
     return toUser(user);
   }
 
-  private async issueTokens(userId: string) {
+  private async issueTokens(
+    userId: string,
+    db: Prisma.TransactionClient = this.prisma,
+  ) {
     const accessToken = await this.jwt.signAsync({ sub: userId });
     const refreshToken = randomBytes(48).toString('hex');
     const days = Number(this.config.get('REFRESH_EXPIRES_DAYS') ?? 7);
     const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-    await this.prisma.refreshToken.create({
+    await db.refreshToken.create({
       data: {
         userId,
         tokenHash: hashToken(refreshToken),

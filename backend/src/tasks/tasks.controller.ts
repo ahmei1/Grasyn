@@ -13,7 +13,6 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { MoveTaskDto } from './dto/move-task.dto';
 import { TaskQueryDto } from './dto/task-query.dto';
-import { PaginationQueryDto } from '../common/dto/pagination.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 
@@ -36,9 +35,8 @@ export class TasksController {
     @CurrentUser() user: AuthUser,
     @Param('projectId') projectId: string,
     @Query() query: TaskQueryDto,
-    @Query() page: PaginationQueryDto,
   ) {
-    return this.tasks.listForProject(user.id, projectId, { ...query, ...page });
+    return this.tasks.listForProject(user.id, projectId, query);
   }
 
   @Get('workspaces/:workspaceId/tasks')
@@ -46,12 +44,8 @@ export class TasksController {
     @CurrentUser() user: AuthUser,
     @Param('workspaceId') workspaceId: string,
     @Query() query: TaskQueryDto,
-    @Query() page: PaginationQueryDto,
   ) {
-    return this.tasks.listForWorkspace(user.id, workspaceId, {
-      ...query,
-      ...page,
-    });
+    return this.tasks.listForWorkspace(user.id, workspaceId, query);
   }
 
   @Get('tasks/:taskId')

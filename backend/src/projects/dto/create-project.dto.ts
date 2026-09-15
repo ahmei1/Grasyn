@@ -1,7 +1,8 @@
+import { Transform } from 'class-transformer';
 import {
   IsDateString,
   IsEnum,
-  IsOptional,
+  ValidateIf,
   IsString,
   MaxLength,
   MinLength,
@@ -14,31 +15,38 @@ export class CreateProjectDto {
   @IsString()
   @MinLength(1)
   @MaxLength(80)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   name: string;
 
   @ApiPropertyOptional()
-  @IsOptional()
+  @ValidateIf((_object, value: unknown) => value !== undefined)
   @IsString()
   @MaxLength(2000)
   description?: string;
 
   @ApiPropertyOptional({ enum: ProjectPriority })
-  @IsOptional()
+  @ValidateIf((_object, value: unknown) => value !== undefined)
   @IsEnum(ProjectPriority)
   priority?: ProjectPriority;
 
   @ApiPropertyOptional({ enum: ProjectStatus })
-  @IsOptional()
+  @ValidateIf((_object, value: unknown) => value !== undefined)
   @IsEnum(ProjectStatus)
   status?: ProjectStatus;
 
   @ApiPropertyOptional()
-  @IsOptional()
+  @ValidateIf(
+    (_object, value: unknown) => value !== undefined && value !== null,
+  )
   @IsDateString()
   startDate?: string;
 
   @ApiPropertyOptional()
-  @IsOptional()
+  @ValidateIf(
+    (_object, value: unknown) => value !== undefined && value !== null,
+  )
   @IsDateString()
   dueDate?: string;
 }
